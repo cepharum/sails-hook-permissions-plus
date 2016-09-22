@@ -31,34 +31,90 @@ module.exports = function( sails ) {
 	return {
 		routes: {
 			after: {
-				"POST /auth/update/:id" : function( req, res, next ) {
-					var error;
-
-					if ( !sails.models.Passport ) {
-						error = new Error( "Missing Passport model. Is sails-permissions installed?" );
-
-						sails.log.error( error );
-						res.json( { error: error.message } ).end( 500 );
-
-						return;
-					}
-
-					var userId = parseInt( req.params.id );
-					if ( !( userId > 0 ) ) {
-						error = new Error( "invalid user id" );
-
-						res.json( { error: error.message } ).end( 400 );
-
-						return;
-					}
-
-					sails.models.Passport
-						.findOne( { user: userId } )
-						.then( function( passport ) {
-
-						} );
-				}
+				"POST /user/password/:id": _updateUserPassport,
+				"POST /user/password": _updateUserPassport
 			}
 		}
 	};
+
+
+	function _updateUserPassport( req, res, next ) {
+		var record = req.body,
+		    id     = req.param( "id");
+
+		if ( !req.session || !req.session.authenticated ) {
+			sails.log.error( "unauthenticated request for changing password" );
+			return res.forbidden();
+		}
+
+		switch ( typeof record ) {
+			case "string" :
+				if ( id ) {
+					record = {
+						password: record
+					};
+
+					break;
+				}
+
+				record = false; // make it fall through cases to reach default
+
+				// falls through
+			case "object" :
+				if ( record ) {
+					break;
+				}
+
+				// falls through
+			default :
+				return res.badRequest();
+		}
+
+		// validate information available for selecting user owning passport
+		var query = {};
+		if ( id > 0 ) {
+			query.id = parseInt( id );
+		} else if ( id ) {
+			query.username = id;
+		} else if ( record.hasOwnProperty( "id" ) ) {
+			query.id = record.id;
+		} else if ( record.hasOwnProperty( "username" ) ) {
+			query.username = record.username;
+		} else {
+			return res.notFound( new Error( "request does not select user" ) );
+		}
+
+		// validate provision of password
+		var password = record.password;
+		if ( typeof password !== "string" || !password.trim().length ) {
+			return res.badRequest();
+		}
+
+
+		sails.log.debug( "request for updating passport on user", query );
+
+		// look up selected user
+		sails.models.user
+			.findOne( query )
+			.then( function( user ) {
+				sails.log.debug( "found user", user );
+
+				// update (any) passport owned by user
+				return sails.models.passport
+					.update( {
+						user: user.id,
+						protocol: "local"
+					}, {
+						password: password
+					} )
+					.then( function() {
+						sails.log.debug( "updated passport" );
+						res.ok();
+					} );
+			} )
+			.catch( function( error ) {
+				res.serverError( error );
+			} );
+
+	}
 };

@@ -6,10 +6,13 @@
   "license": "MIT",
   "main": "index.js",
   "sails": {
-    "isHook": true
+    "isHook": true,
+    "hookName": "permissions-plus"
   },
   "devDependencies": {
+    "expect.js": "^0.3.1",
     "mocha": "^3.0.2",
-    "sails": "^0.12.4"
+    "sails": "^0.12.4",
+    "sails-permissions": "^2.2.0"
   }
 }

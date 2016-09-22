@@ -26,24 +26,26 @@
  * @author: cepharum
  */
 
-var SAILS = require( "sails" ).Sails;
+var SAILS  = require( "sails" ).Sails;
+var EXPECT = require( "expect.js" );
 
 describe( "permissions-plus hook", function() {
 
 	var sails;
 
-	// Lifts sails prior to running some test.
-	before( function( done ) {
-
+	before( "lift sails", function( done ) {
 		this.timeout( 11000 );
 
 		// Try lifting sails
 		SAILS().lift( {
 			hooks: {
-				"sails-hook-permissions-plus": require( '../' ),
+				"sails-hook-permissions-plus": require( "../" ),
 				"grunt": false
 			},
-			log:   { level: "error" }
+			log:   { level: "error" },
+			models: {
+				migrate: "drop"
+			}
 		}, function( err, _sails ) {
 			if ( err ) {
 				return done( err );
@@ -55,8 +57,7 @@ describe( "permissions-plus hook", function() {
 		} );
 	} );
 
-	// Lowers sails after running some test.
-	after( function( done ) {
+	after( "lower sails", function( done ) {
 		if ( sails ) {
 			sails.lower( done );
 		} else {
@@ -64,7 +65,49 @@ describe( "permissions-plus hook", function() {
 		}
 	} );
 
+
 	it( "properly integrates with sails", function() {
+	} );
+
+	it( "assures to reject unauthenticated POST requests at endpoint /user/password", function( done ) {
+		sails.request( {
+			method: "POST",
+			url: "/user/update/1",
+			data: "secret"
+		}, function( err, res, body ) {
+			EXPECT( err ).to.be.ok();
+			EXPECT( err.status ).to.equal( 403 );
+
+			done();
+		} );
+	} );
+
+	// FIXME Test does not work due to sails-permissions requiring manual configuration of policies for AuthController granted access to Passport's req.login().
+	it.skip( "assures to process authenticated POST requests at endpoint /user/password", function( done ) {
+		sails.request( {
+			method: "POST",
+			url: "/auth/local",
+			data: {
+				identifier: "admin",
+				password: "admin1234"
+			}
+		}, function( err, res, body ) {
+			EXPECT( err ).not.to.be.ok();
+			EXPECT( res ).to.be.ok();
+			EXPECT( body ).to.be.ok();
+			EXPECT( body.id ).to.be.above( 0);
+
+			sails.request( {
+				method: "POST",
+				url: "/user/update/" + body.id,
+				data: "secret"
+			}, function( err, res, body ) {
+				EXPECT( err ).not.to.be.ok();
+				EXPECT( res ).to.be.ok();
+
+				done();
+			} );
+		} );
 	} );
 
 } );

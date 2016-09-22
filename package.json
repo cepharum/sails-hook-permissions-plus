@@ -1,6 +1,6 @@
 {
   "name": "sails-hook-permissions-plus",
-  "description": "injects routes still missing in sails-hook-permissions",
+  "description": "Injects features still missing in sails-permissions.",
   "version": "0.0.1",
   "repository": "https://github.com/cepharum/sails-hook-permissions-plus.git",
   "license": "MIT",
